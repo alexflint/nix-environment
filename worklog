@@ -1,0 +1,76 @@
+#!/usr/local/bin/python
+
+import os
+import sys
+import shutil
+import datetime
+import argparse
+
+WORKLOG_DIR = 'Worklogs'
+COMMENT_FILENAME = '_comment_.txt'
+
+parser = argparse.ArgumentParser(description='Copy files to worklog directory.')
+parser.add_argument('--comment', '-m', type=str, required=False,
+                    help='Comment to be written to to _comment_.txt.')
+parser.add_argument('--label', '-l', type=str, required=False,
+                    help='String to be appended to output directory name.')
+parser.add_argument('paths', nargs='+', type=str,
+                    help='Paths to save.')
+args = parser.parse_args()
+
+# Decide where to write output to
+datetime_fmt = '%Y %m %d %I.%M%p'   # eg: "2014 01 03 11.45AM"
+dir_name = datetime.datetime.now().strftime(datetime_fmt)
+dest_dir = os.path.join(os.environ.get('HOME'), WORKLOG_DIR, dir_name)
+if args.label:
+    dest_dir += ' ' + args.label
+
+# Create output dir and update symlinks
+if not os.path.exists(dest_dir):
+    os.mkdir(dest_dir)
+    print 'Created %s' % dest_dir
+    
+    # Update symlink
+    latest = os.path.join(os.environ.get('HOME'), WORKLOG_DIR, 'latest')
+    try:
+        # Do not use os.path.exists because that returns false for broken symlinks
+        os.remove(latest)
+    except OSError:
+        pass
+    os.symlink(dest_dir, latest)
+
+assert os.path.isdir(dest_dir)
+
+paths = args.paths
+
+# If there was just one argument and it was a directory then copy
+# its contents, not the directory itself
+if len(paths) == 1 and os.path.isdir(paths[0]):
+    paths = list(os.path.join(paths[0], item) for item in os.listdir(paths[0]))
+
+for src in paths:
+    if not os.path.exists(src):
+        print 'Path does not exist: %s' % src
+        continue
+
+    if src.endswith('/'):
+        src = src[:-1]   # because os.path.basename('foo/bar/') == ''
+
+    dest = os.path.join(dest_dir, os.path.basename(src))
+    if os.path.exists(dest):
+        head,tail = os.path.splitext(dest)
+        suffix = 2
+        while os.path.exists(head + ' ' + str(suffix) + tail):
+            suffix += 1
+        dest = head + ' ' + str(suffix) + tail
+
+    print '%s -> %s' % (src, dest)
+    if os.path.isdir(src):
+        shutil.copytree(src, dest)
+    else:
+        shutil.copy(src, dest)
+
+# Write the comment
+if args.comment:
+    with open(os.path.join(dest_dir, COMMENT_FILENAME), 'w') as fd:
+        fd.write(args.comment)

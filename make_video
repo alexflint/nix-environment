@@ -1,0 +1,104 @@
+#!/usr/local/bin/python
+
+import os
+import sys
+import tempfile
+import argparse
+import subprocess
+import shutil
+
+NATURAL_FPS = 30.
+
+# Formats convertible by imagemagick:
+CONVERTIBLE_EXTENSIONS = ['png', 'jpeg', 'jpg', 'pdf', 'pgm', 'bmp']
+
+# Formats readable by ffmpeg:
+FFMPEG_EXTENSIONS = ['png', 'jpg', 'jpeg', 'pgm']
+
+def extension(path):
+    return os.path.splitext(path)[1][1:].lower()
+
+def main():
+    parser = argparse.ArgumentParser(description='Make a video from a sequence of video frames')
+    parser.add_argument('--limit', type=int, required=False)
+    parser.add_argument('--fps', type=float, required=False)
+    parser.add_argument('--temp_format', type=str, required=False)
+    parser.add_argument('input', nargs='+',
+                        help='Images or PDFs from which to create the video, or a directory '+\
+                             'containing images or pdfs')
+    parser.add_argument('output', type=str)
+    args = parser.parse_args()
+
+    if os.path.exists(args.output):
+        ext = extension(args.output)
+        if ext in CONVERTIBLE_EXTENSIONS:
+            print 'Error: Cannot overwrite with output: %s' % args.output
+            return -1
+
+    # Process input paths
+    input_paths = []
+    for path in args.input:
+        if os.path.isdir(path):
+            for entry in sorted(os.listdir(path)):
+                if extension(entry) in CONVERTIBLE_EXTENSIONS:
+                    input_paths.append(os.path.join(path, entry))
+        else:
+            input_paths.append(path)
+
+    if args.limit:
+        input_paths = input_paths[:args.limit]
+
+    # Pick an intermediate format to convert the frames to
+    if args.temp_format:
+        temp_ext = args.temp_format
+    else:
+        temp_ext = extension(input_paths[0])
+        if temp_ext not in FFMPEG_EXTENSIONS:
+            print '%s files are not readable by ffmpeg: will convert to png.' % temp_ext
+            temp_ext = 'png'
+
+    # Create symlinks
+    temp_dir = tempfile.mkdtemp()
+    index = 0
+    for index, input_path in enumerate(input_paths):
+        ext = extension(input_path)
+        temp_path = os.path.join(temp_dir, '%08d.%s' % (index, temp_ext))
+        if ext == temp_ext:
+            print 'Linking %s at %s' % (input_path, temp_path)
+            #shutil.copy(input_path, temp_path)
+            os.symlink(os.path.abspath(input_path), temp_path)
+        else:
+            print 'Converting %s to %s' % (input_path, temp_ext)
+            retval = subprocess.call(['convert', input_path, temp_path])
+            if retval:
+                print 'Unable to convert %s to %s' % (input_path, temp_ext)
+                return -1
+
+    # Create video
+    print '\nRunning ffmpeg:'
+    ffmpeg_options = {
+        '-b:v' : '1000k',
+        '-f': 'image2',
+        '-i': os.path.join(temp_dir, '%%08d.%s' % temp_ext),
+        '-vcodec': 'h264',      # so that quicktime can open this video
+        '-pix_fmt': 'yuv420p'   # so that quicktime can open this video
+        }
+
+    if args.fps:
+        ffmpeg_options['-filter:v'] = 'setpts=%f*PTS' % (NATURAL_FPS / args.fps)
+
+    command = ['ffmpeg']
+    for key, value in ffmpeg_options.iteritems():
+        command.extend((key, str(value)))
+    command.append('-y')  # overwrite outputs
+    command.append(args.output)
+
+    print ' '.join(command) + '\n'
+    subprocess.call(command)
+
+    print '\nWrote output to %s' % args.output
+
+    return 0
+            
+if __name__ == '__main__':
+    sys.exit(main())
