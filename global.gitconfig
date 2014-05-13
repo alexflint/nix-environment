@@ -1,0 +1,27 @@
+[user]
+	name = alexflint
+	email = alex.flint@gmail.com
+[core]
+	excludesfile = /Users/alexflint/.gitignore_global
+	trustctime = false
+[difftool "sourcetree"]
+	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
+	path = 
+[mergetool "sourcetree"]
+	cmd = /Applications/SourceTree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
+	trustExitCode = true
+[alias]
+	ci = commit
+  st = status
+
+# From http://blog.kfish.org/2010/04/git-lola.html:
+[alias]
+  lol = log --graph --decorate --pretty=oneline --abbrev-commit
+  lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
+[color]
+  branch = auto
+  diff = auto
+  interactive = auto
+  status = auto
+[push]
+	default = current

@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/python
 
 import os
 import sys
@@ -6,7 +6,7 @@ import shutil
 import datetime
 import argparse
 
-WORKLOG_DIR = 'Worklogs'
+WORKLOG_DIR = os.path.expanduser(os.environ.get('WORKLOG_DIR', '~/Worklogs'))
 COMMENT_FILENAME = '_comment_.txt'
 
 parser = argparse.ArgumentParser(description='Copy files to worklog directory.')
@@ -18,12 +18,16 @@ parser.add_argument('paths', nargs='+', type=str,
                     help='Paths to save.')
 args = parser.parse_args()
 
+if not os.path.isdir(WORKLOG_DIR):
+    print 'Worklog directory does not exist: %s' % WORKLOG_DIR
+    sys.exit(-1)
+
 # Decide where to write output to
 datetime_fmt = '%Y %m %d %I.%M%p'   # eg: "2014 01 03 11.45AM"
-dir_name = datetime.datetime.now().strftime(datetime_fmt)
-dest_dir = os.path.join(os.environ.get('HOME'), WORKLOG_DIR, dir_name)
+dirname = datetime.datetime.now().strftime(datetime_fmt)
 if args.label:
-    dest_dir += ' ' + args.label
+    dirname += ' ' + args.label
+dest_dir = os.path.join(WORKLOG_DIR, dirname)
 
 # Create output dir and update symlinks
 if not os.path.exists(dest_dir):
