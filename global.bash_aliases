@@ -14,9 +14,6 @@ export PATH=$PATH:$ADT_PATH/sdk:$ADT_PATH/sdk/platform-tools:$ADT_PATH/sdk/tools
 # Subversion vars
 export SVN_EDITOR='emacs -nw'
 
-# Homebrew vars
-export HOMEBREW_GITHUB_API_TOKEN=30c748ccc487ff9720d1805dcd1595472dd614c4
-
 # Go vars
 export GOPATH=$HOME/Code/go
 
